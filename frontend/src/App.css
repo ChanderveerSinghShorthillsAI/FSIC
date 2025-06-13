@@ -36,3 +36,29 @@
     transform: rotate(360deg);
   }
 }
+
+.district-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(90deg, #1976d2 0%, #43a047 100%);
+  border-radius: 18px;
+  padding: 6px 22px;
+  border: 2px solid #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14), 0 1.5px 4px #1976d2;
+  letter-spacing: 0.8px;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(44,62,80,0.15);
+  transition: transform 0.18s cubic-bezier(.18,.8,.56,1.08);
+  /* Add a tiny pop-up animation on mount */
+  animation: popin 0.7s cubic-bezier(.4,2,.6,1) 1;
+}
+@keyframes popin {
+  0%   { transform: scale(0.75); opacity: 0; }
+  75%  { transform: scale(1.12); opacity: 1;}
+  100% { transform: scale(1); opacity: 1;}
+}
+
+
+

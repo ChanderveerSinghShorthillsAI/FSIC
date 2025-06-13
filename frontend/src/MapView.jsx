@@ -90,26 +90,69 @@ export default function MapView() {
         zoom={6.5}
         style={{ height: "100vh", width: "100vw" }}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /> */}
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles © Esri"
+        />
+
         {selectedDistrict === null ? (
+          // <GeoJSON
+          //   data={districts}
+          //   style={{
+          //     fillColor: "#1976d2",
+          //     color: "white",
+          //     weight: 1,
+          //     fillOpacity: 0.5,
+          //     cursor: "pointer",
+          //   }}
+          //   onEachFeature={(feature, layer) => {
+          //     layer.on({
+          //       click: onDistrictClick,
+          //     });
+          //   }}
+          // />
           <GeoJSON
             data={districts}
-            style={{
-              fillColor: "#1976d2",
+            style={() => ({
+              fillColor: "#88c0f7",
               color: "white",
               weight: 1,
-              fillOpacity: 0.5,
+              fillOpacity: 0.6,
               cursor: "pointer",
-            }}
+            })}
             onEachFeature={(feature, layer) => {
+              layer.bindTooltip(
+                feature.properties.NAME_2 ||
+                  feature.properties.district ||
+                  feature.properties.name,
+                {
+                  permanent: true,
+                  direction: "center",
+                  className: "district-label",
+                }
+              );
+
               layer.on({
+                mouseover: (e) => {
+                  e.target.setStyle({
+                    fillOpacity: 0.9,
+                    weight: 2,
+                  });
+                },
+                mouseout: (e) => {
+                  e.target.setStyle({
+                    fillOpacity: 0.6,
+                    weight: 1,
+                  });
+                },
                 click: onDistrictClick,
               });
             }}
           />
         ) : (
           <>
-            <GeoJSON
+            {/* <GeoJSON
               data={selectedDistrict}
               style={{
                 fillColor: "#43a047",
@@ -117,7 +160,17 @@ export default function MapView() {
                 weight: 2,
                 fillOpacity: 0.7,
               }}
+            /> */}
+            <GeoJSON
+              data={selectedDistrict}
+              style={{
+                fillColor: "#6dd47e", // More vivid green
+                color: "#2f855a", // Dark green boundary
+                weight: 3,
+                fillOpacity: 0.8,
+              }}
             />
+
             {gridLines && (
               <>
                 {gridLines.hLines.map((line, i) => (
