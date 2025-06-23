@@ -17,12 +17,21 @@ export default function MapView() {
   const [gridLines, setGridLines] = useState(null);
   const [gridCells, setGridCells] = useState(null);
   const [soilData, setSoilData] = useState(null);
+  const [cultivableMap, setCultivableMap] = useState({});
 
   useEffect(() => {
     fetch(process.env.PUBLIC_URL + "/districts.geojson")
       .then((res) => res.json())
       .then(setDistricts);
   }, []);
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/api/cultivable_grids/")
+      .then((res) => res.json())
+      .then(setCultivableMap);
+  }, []);
+  useEffect(() => {
+    console.log("cultivableMap loaded:", cultivableMap);
+  }, [cultivableMap]);
 
   const onDistrictClick = (e) => {
     const feature = e.target.feature;
@@ -80,6 +89,29 @@ export default function MapView() {
       alert("Error fetching soil data: " + error.message);
     }
   };
+
+  useEffect(() => {
+    console.log(
+      "First 10 cultivableMap keys:",
+      Object.keys(cultivableMap).slice(0, 10)
+    );
+  }, [cultivableMap]);
+
+  function findClosestCultivable(centerLat, centerLng, cultivableMap) {
+    const EPSILON = 0.00012; // slightly more than 0.0001 for 5 decimal places
+    let foundKey = null;
+    for (const k of Object.keys(cultivableMap)) {
+      const [lat, lng] = k.split(",").map(Number);
+      if (
+        Math.abs(lat - centerLat) < EPSILON &&
+        Math.abs(lng - centerLng) < EPSILON
+      ) {
+        foundKey = k;
+        break;
+      }
+    }
+    return foundKey ? cultivableMap[foundKey] : undefined;
+  }
 
   if (!districts) return <div>Loading Map...</div>;
 
@@ -189,7 +221,7 @@ export default function MapView() {
                 ))}
               </>
             )}
-            {gridCells &&
+            {/* {gridCells &&
               gridCells.map((cell, idx) => (
                 <Polygon
                   key={idx}
@@ -203,7 +235,62 @@ export default function MapView() {
                     click: () => onCellClick(cell),
                   }}
                 />
-              ))}
+              ))} */}
+            {/* {gridCells &&
+              gridCells.map((cell, idx) => {
+                const centerLat = ((cell[0][0] + cell[2][0]) / 2).toFixed(5);
+                const centerLng = ((cell[0][1] + cell[2][1]) / 2).toFixed(5);
+                const key = `${centerLat},${centerLng}`;
+                const cultivable = cultivableMap[key] !== 0; // true if undefined or 1
+                if (!cultivable) {
+                  console.log("Black grid:", centerLat, centerLng, key);
+                }
+                console.log("Grid key generated:", key, "Cultivable:", cultivableMap[key]);
+                console.log("Grid Cell Key:", key, "→ CultivableMap has?", cultivableMap.hasOwnProperty(key));
+
+                
+
+                return (
+                  
+                  <Polygon
+                    key={idx}
+                    positions={cell}
+                    pathOptions={{
+                      color: cultivable ? "orange" : "#222",
+                      weight: 1,
+                      fillOpacity: cultivable ? 0.08 : 0.7,
+                      fillColor: cultivable ? "#fffbe6" : "#222",
+                      dashArray: cultivable ? null : "4 4",
+                      opacity: 1,
+                    }}
+                    eventHandlers={
+                      cultivable ? { click: () => onCellClick(cell) } : {}
+                    }
+                  />
+                );
+              })} */}
+
+            {gridCells &&
+              gridCells.map(({ cell, index }) => {
+                const cultivable = cultivableMap[index] !== 0; // index-based lookup
+                return (
+                  <Polygon
+                    key={index}
+                    positions={cell}
+                    pathOptions={{
+                      color: cultivable ? "orange" : "#222",
+                      weight: 1,
+                      fillOpacity: cultivable ? 0.08 : 0.7,
+                      fillColor: cultivable ? "#fffbe6" : "#222",
+                      dashArray: cultivable ? null : "4 4",
+                      opacity: 1,
+                    }}
+                    eventHandlers={
+                      cultivable ? { click: () => onCellClick(cell) } : {}
+                    }
+                  />
+                );
+              })}
 
             <div
               style={{

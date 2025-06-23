@@ -1,2 +1,6 @@
 ./backend/node_modules/
 ./frontend/.env
+runs/classify/predict
+backend/soilmap/soil/testing_images
+backend/soilmap/soil/sat_images
+backend/soilmap/soil/data/dataset
