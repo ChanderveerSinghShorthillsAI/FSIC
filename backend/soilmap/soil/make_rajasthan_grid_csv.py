@@ -20,22 +20,43 @@ rajasthan_poly = raj_gdf.unary_union
 minx, miny, maxx, maxy = rajasthan_poly.bounds
 
 # --- Generate grid ---
+# cells = []
+# lat = miny
+# while lat < maxy:
+#     lng = minx
+#     while lng < maxx:
+#         cell_poly = shapely.geometry.box(lng, lat, lng+grid_step, lat+grid_step)
+#         # Only include cells that intersect Rajasthan
+#         if cell_poly.intersects(rajasthan_poly):
+#             cells.append({
+#                 "min_lng": lng,
+#                 "min_lat": lat,
+#                 "max_lng": lng+grid_step,
+#                 "max_lat": lat+grid_step
+#             })
+#         lng += grid_step
+#     lat += grid_step
+
+
 cells = []
+idx = 0
 lat = miny
 while lat < maxy:
     lng = minx
     while lng < maxx:
         cell_poly = shapely.geometry.box(lng, lat, lng+grid_step, lat+grid_step)
-        # Only include cells that intersect Rajasthan
         if cell_poly.intersects(rajasthan_poly):
             cells.append({
+                "index": idx,   # <-- NEW LINE
                 "min_lng": lng,
                 "min_lat": lat,
                 "max_lng": lng+grid_step,
                 "max_lat": lat+grid_step
             })
+            idx += 1           # <-- NEW LINE
         lng += grid_step
     lat += grid_step
+
 
 # --- Save to CSV ---
 df = pd.DataFrame(cells)

@@ -331,3 +331,32 @@ class SoilPropertiesView(APIView):
                 "crop_price_data": crop_price_rows,  # <--- NEW!
             }
         )
+
+
+
+# Load cultivability map at server startup
+CULTIVABILITY_MAP = {}
+grid_csv_path = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/yolo_results/grid_results.csv"  # Change path!
+
+with open(grid_csv_path, newline='') as csvfile:
+    reader = csv.DictReader(csvfile)
+    for row in reader:
+        index = row['index']
+        CULTIVABILITY_MAP[index] = int(row['cultivable'])
+
+    #     filename = row['filename']  # Ex: grid_27.08422_74.30923.png
+    #     lat = float(filename.split('_')[1])
+    #     lng = float(filename.split('_')[2].replace('.png',''))
+    #     print(lat , lng)  # DEBUG
+    #     # Store cultivability as int (0 or 1)
+    #     # Assuming 'cultivable' is the column indicating cultivability
+    #     CULTIVABILITY_MAP[f"{lat:.5f},{lng:.5f}"] = int(row['cultivable'])
+    #     print(f"Added {lat:.5f},{lng:.5f} -> {CULTIVABILITY_MAP[f'{lat:.5f},{lng:.5f}']}")
+    # print("First 10 cultivability map keys:", list(CULTIVABILITY_MAP.keys())[:10])
+
+
+# New API endpoint
+class CultivableGridAPI(APIView):
+    def get(self, request):
+        # Returns {"27.08422,74.30923": 1, ...}
+        return Response(CULTIVABILITY_MAP)
