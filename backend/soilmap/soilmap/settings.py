@@ -76,12 +76,32 @@ WSGI_APPLICATION = 'soilmap.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+# DATABASES = {
+#   'default': {
+#     'ENGINE': 'django.db.backends.postgresql',
+#     'NAME': 'postgres',              # Supabase default DB name
+#     'USER': 'postgres.wgpdmnofhmrgxepkwkwu',              # Supabase default user
+#     'PASSWORD': 'Chandu20@',    # Jo dashboard me hai
+#     'HOST': 'aws-0-ap-south-1.pooler.supabase.com', # Supabase Host
+#     'PORT': '6543',
+    
+#   }
+# }
+
+import environ
+
+env = environ.Env()
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db('DATABASE_URL', default='postgresql://postgres:Chandu20@@db.wgpdmnofhmrgxepkwkwu.supabase.co:5432/postgres')
 }
+
 
 
 # Password validation
@@ -129,5 +149,6 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    
 ]
 

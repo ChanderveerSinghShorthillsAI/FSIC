@@ -1,21 +1,20 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from PIL import Image
-from collections import Counter
+from rest_framework.views import APIView # this is used to create API views
+from rest_framework.response import Response # this is used to send responses back to the client
+from PIL import Image # Python Imaging Library for image processing
+from collections import Counter # Counter is used to count occurrences of elements
 import csv
 import os
 
 # Set your soil image paths and legend mappings here
-
 # Load climate data once at startup
-CLIMATE_DATA = {}
-climate_csv_path = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/data/rajasthan_city_climate_split.csv"
-if os.path.exists(climate_csv_path):
-    with open(climate_csv_path, encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            city = row["City"].strip().lower()
-            CLIMATE_DATA[city] = row
+CLIMATE_DATA = {} # Dictionary to hold climate data for each city
+climate_csv_path = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/data/rajasthan_city_climate_split.csv" # Update the path if you move the file
+if os.path.exists(climate_csv_path): # Check if the file exists
+    with open(climate_csv_path, encoding="utf-8") as f: # Open the file with UTF-8 encoding because it may contain non-ASCII characters
+        reader = csv.DictReader(f) # Read the CSV file as a dictionary
+        for row in reader: # Iterate through each row in the CSV
+            city = row["City"].strip().lower() # Use lower-case and strip for matching
+            CLIMATE_DATA[city] = row # Store the row data in the dictionary with city as the key
 
 # --- Forest/Population Data ---
 
@@ -140,11 +139,11 @@ if os.path.exists(crop_price_csv_path):
             CROP_PRICE_DATA[district].append(row)
 
 
-SOIL_IMAGES = {
+SOIL_IMAGES = { # Dictionary to hold soil image paths and legends , # keys are the soil properties and values are dictionaries with image path and legend
     "copper": {
         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Cu.jpg",
         "legend": {
-            (50, 150, 0, 255): "Sufficient",  # Green
+            (50, 150, 0, 255): "Sufficient",  # Green 
             (197, 76, 37, 255): "Deficient",  # Red
         },
     },
@@ -187,14 +186,14 @@ SOIL_IMAGES = {
         },
     },
     "Phosphorus": {
-        "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Fe.jpg",
+        "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_P.jpg",
         "legend": {
             (50, 150, 0, 255): "High",  # Green
             (249, 250, 50, 255): "Medium",  # Yellow
         },
     },
     "Pottasium": {
-        "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_P.jpg",
+        "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_K.jpg",
         "legend": {
             (50, 150, 0, 255): "High",  # Green
             (249, 250, 50, 255): "Medium",  # Yellow
@@ -218,69 +217,60 @@ SOIL_IMAGES = {
 }
 
 # The geo bounds your images represent
-MIN_LAT, MAX_LAT = 23.3, 30.9  # South, North (adjust as per your crop)
-MIN_LNG, MAX_LNG = 69.3, 78.5  # West, East (adjust as per your crop)
+MIN_LAT, MAX_LAT = 23.3, 30.9  # South, North 
+MIN_LNG, MAX_LNG = 69.3, 78.5  # West, East 
 
 
 def latlng_to_pixel(lat, lng, img_width, img_height):
-    x = int(((lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * img_width)
-    y = int(((MAX_LAT - lat) / (MAX_LAT - MIN_LAT)) * img_height)
+    x = int(((lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * img_width) # Convert longitude to x pixel
+    y = int(((MAX_LAT - lat) / (MAX_LAT - MIN_LAT)) * img_height) # Convert latitude to y pixel
+    # Ensure x and y are within bounds
     return x, y
 
 
-def closest_color(rgb, legend):
+def closest_color(rgb, legend): # Find the closest color in the legend to the given RGB tuple
+    """Finds the closest color in the legend to the given RGB tuple."""
     # Use only first 3 channels for matching (ignore alpha)
-    rgb = tuple(rgb[:3])
-    distances = [
-        (sum((c1 - c2) ** 2 for c1, c2 in zip(rgb, lrgb[:3])), name)
-        for lrgb, name in legend.items()
+    rgb = tuple(rgb[:3]) # Take only the first 3 channels (R, G, B)
+    # Calculate squared distances to avoid sqrt for performance
+    # legend is a dictionary with RGB tuples as keys and color names as values
+    distances = [ # List of tuples (distance, color name)
+        (sum((c1 - c2) ** 2 for c1, c2 in zip(rgb, lrgb[:3])), name) # Calculate squared distance
+        for lrgb, name in legend.items() # Iterate over legend items to compare colors and names 
     ]
-    return min(distances, key=lambda x: x[0])[1]
+    return min(distances, key=lambda x: x[0])[1] # return the color name with property like sufficient with the smallest distance
 
 
-def get_window_mode(img, x, y, legend, window=2):
+def get_window_mode(img, x, y, legend, window=2.135): # Get the most common color in a window around (x, y)
     """Returns the mode class in a (2*window+1)x(2*window+1) square around (x, y)."""
-    values = []
-    for dx in range(-window, window + 1):
-        for dy in range(-window, window + 1):
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < img.width and 0 <= ny < img.height:
-                try:
-                    px_rgb = img.getpixel((nx, ny))[:3]
-                    values.append(closest_color(px_rgb, legend))
+    values = [] # List to hold color values in the window
+    for dx in range(-window, window + 1): # Iterate over the x range of the window
+        for dy in range(-window, window + 1):# Iterate over the y range of the window
+            nx, ny = x + dx, y + dy # Calculate the new pixel coordinates
+            if 0 <= nx < img.width and 0 <= ny < img.height: # Check if the pixel is within bounds
+                try: # Get the pixel color at (nx, ny)
+                    px_rgb = img.getpixel((nx, ny))[:3] # Get the RGB tuple (ignore alpha channel if present)
+                    values.append(closest_color(px_rgb, legend)) # Find the closest color property in the legend and append it to values
                 except Exception:
                     pass
-    if values:
-        return Counter(values).most_common(1)[0][0]
+    if values: # If we have any values in the window, return the most common one
+        return Counter(values).most_common(1)[0][0] # Return the most common color name
     else:
         return "Unknown"
 
 
-# class SoilPropertiesView(APIView):
-#     def post(self, request, format=None):
-#         lat = request.data.get("lat")
-#         lng = request.data.get("lng")
-#         if lat is None or lng is None:
-#             return Response({"error": "Missing lat/lng"}, status=400)
-
-#         result = {}
-#         for key, val in SOIL_IMAGES.items():
-#             try:
-#                 img = Image.open(val["path"])
-#                 width, height = img.size
-#                 x, y = latlng_to_pixel(float(lat), float(lng), width, height)
-#                 value = get_window_mode(img, x, y, val["legend"], window=2)  # 5x5 window
-#                 result[key] = value
-#             except Exception as e:
-#                 result[key] = f"Error: {str(e)}"
-#         return Response(result)
 
 
-class SoilPropertiesView(APIView):
+
+class SoilPropertiesView(APIView): # This class handles the POST request to get soil properties based on latitude and longitude
+    """API endpoint to get soil properties based on latitude and longitude.
+    Expects POST data with 'lat' and 'lng' keys.
+    Returns a JSON response with soil properties and other related data.
+    """
     def post(self, request, format=None):
-        lat = request.data.get("lat")
-        lng = request.data.get("lng")
-        city = request.data.get("city", "").strip().lower()
+        lat = request.data.get("lat") # Get latitude from request data
+        lng = request.data.get("lng") # Get longitude from request data
+        city = request.data.get("city", "").strip().lower() # Get city from request data, default to empty string if not provided
 
         print(f"Received POST: lat={lat}, lng={lng}, city='{city}'")  # DEBUG
 
@@ -288,14 +278,14 @@ class SoilPropertiesView(APIView):
             return Response({"error": "Missing lat/lng"}, status=400)
 
         # Soil data
-        result = {}
-        for key, val in SOIL_IMAGES.items():
-            try:
-                img = Image.open(val["path"])
-                width, height = img.size
-                x, y = latlng_to_pixel(float(lat), float(lng), width, height)
-                value = get_window_mode(img, x, y, val["legend"], window=2)
-                result[key] = value
+        result = {} # Dictionary to hold soil property results
+        for key, val in SOIL_IMAGES.items(): # Iterate over each soil property
+            try: # Try to open the image file for the soil property
+                img = Image.open(val["path"]) # Open the image file
+                width, height = img.size # Get the dimensions of the image
+                x, y = latlng_to_pixel(float(lat), float(lng), width, height) # Convert lat/lng to pixel coordinates
+                value = get_window_mode(img, x, y, val["legend"], window=2) # Get the most common color in a 5x5 window around the pixel
+                result[key] = value # Store the result in the dictionary , the result is the most common color name for the soil property 
             except Exception as e:
                 result[key] = f"Error: {str(e)}"
 
@@ -335,28 +325,404 @@ class SoilPropertiesView(APIView):
 
 
 # Load cultivability map at server startup
-CULTIVABILITY_MAP = {}
+CULTIVABILITY_MAP = {} # Dictionary to hold cultivability data
+# This map will hold the cultivability status for each grid cell
+# Key: "lat,lng" (rounded to 5 decimals), Value: 0 or 1 (not cultivable or cultivable)
+# Example: "27.08422,74.30923": 1
+# Load the grid results CSV file to populate the CULTIVABILITY_MAP
 grid_csv_path = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/yolo_results/grid_results.csv"  # Change path!
 
-with open(grid_csv_path, newline='') as csvfile:
-    reader = csv.DictReader(csvfile)
-    for row in reader:
-        index = row['index']
-        CULTIVABILITY_MAP[index] = int(row['cultivable'])
+with open(grid_csv_path, newline='') as csvfile: # Open the CSV file containing grid results
+    reader = csv.DictReader(csvfile) # Read the CSV file as a dictionary
+    for row in reader: # # Iterate through each row in the CSV
+        index = row['index'] # Extract the index from the row
+        CULTIVABILITY_MAP[index] = int(row['cultivable']) # Store cultivability as int (0 or 1) in the map
 
-    #     filename = row['filename']  # Ex: grid_27.08422_74.30923.png
-    #     lat = float(filename.split('_')[1])
-    #     lng = float(filename.split('_')[2].replace('.png',''))
-    #     print(lat , lng)  # DEBUG
-    #     # Store cultivability as int (0 or 1)
-    #     # Assuming 'cultivable' is the column indicating cultivability
-    #     CULTIVABILITY_MAP[f"{lat:.5f},{lng:.5f}"] = int(row['cultivable'])
-    #     print(f"Added {lat:.5f},{lng:.5f} -> {CULTIVABILITY_MAP[f'{lat:.5f},{lng:.5f}']}")
-    # print("First 10 cultivability map keys:", list(CULTIVABILITY_MAP.keys())[:10])
+   
 
 
 # New API endpoint
 class CultivableGridAPI(APIView):
     def get(self, request):
         # Returns {"27.08422,74.30923": 1, ...}
-        return Response(CULTIVABILITY_MAP)
+        return Response(CULTIVABILITY_MAP) # Return the cultivability map   
+
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from PIL import Image
+# from collections import Counter
+# from .models import (
+#     water_usage_data,
+#     soil_analysis_data,
+#     rajasthan_river_data,
+#     rajasthan_ravine_area,
+#     rajasthan_rainfall_distribution_june2025,
+#     rajasthan_groundwater_wells,
+#     rajasthan_district_forest_stat,
+#     rajasthan_city_climate_split,
+#     ForestAssessment2011_data_file_1,
+#     crop_production_data,
+#     crop_price_data,
+#     NoCIssuance,
+#     OffenceData,
+#     BlockMaster,
+#     ForestFireAlert,
+#     NurseryData,
+#     MasterProduce,
+#     ProduceAuction,
+#     ProjectShapefile,
+#     PlantationSite,
+#     ProjectMonthlyProgress,
+#     SpeciesCarbonSequestration,
+#     RainfallDataset,
+#     SoilMoistureDataset,
+#     GroundWaterDepth,
+#     LivestockData,
+#     DigitalElevationData,
+#     TemperatureData,
+#     HumanSettlementData,
+#     GrasslandWaterBodiesData,
+#     ForestFireData,
+# )
+
+# # Soil image paths and legend mappings
+# SOIL_IMAGES = {
+#     "copper": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Cu.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "Sufficient",
+#             (197, 76, 37, 255): "Deficient",
+#         },
+#     },
+#     "soil_salinity": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_EC.jpg",
+#         "legend": {
+#             (210, 219, 50, 255): "Mild salinity",
+#             (208, 207, 82, 255): "Low Salinity",
+#             (141, 182, 0, 255): "High salinity",
+#         },
+#     },
+#     "iron": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Fe.jpg",
+#         "legend": {
+#             (250, 50, 50, 255): "Deficient",
+#             (50, 149, 0, 255): "Sufficient",
+#         },
+#     },
+#     "Mangnese": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Mn.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "Sufficient",
+#             (118, 116, 17, 255): "Deficient",
+#         },
+#     },
+#     "Organic_Carbon": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_OC.jpg",
+#         "legend": {
+#             (250, 50, 50, 255): "Low",
+#             (50, 150, 0, 255): "High",
+#             (249, 249, 50, 255): "Medium",
+#         },
+#     },
+#     "Ph": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_pH.jpg",
+#         "legend": {
+#             (10, 98, 9, 255): "Normal",
+#             (255, 115, 222, 255): "Slightly Alkaline",
+#             (192, 154, 107, 255): "Moderately Alkaline",
+#         },
+#     },
+#     "Phosphorus": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_P.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "High",
+#             (249, 250, 50, 255): "Medium",
+#         },
+#     },
+#     "Pottasium": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_K.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "High",
+#             (249, 250, 50, 255): "Medium",
+#             (250, 50, 50, 255): "Low",
+#         },
+#     },
+#     "Sulphur": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_S.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "Sufficient",
+#             (197, 76, 37, 255): "Deficient",
+#         },
+#     },
+#     "Zinc": {
+#         "path": "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/images/2_Zn.jpg",
+#         "legend": {
+#             (50, 150, 0, 255): "Sufficient",
+#             (197, 76, 37, 255): "Deficient",
+#         },
+#     },
+# }
+
+# # Geo bounds for images
+# MIN_LAT, MAX_LAT = 23.3, 30.9  # South, North
+# MIN_LNG, MAX_LNG = 69.3, 78.5  # West, East
+
+# def latlng_to_pixel(lat, lng, img_width, img_height):
+#     x = int(((lng - MIN_LNG) / (MAX_LNG - MIN_LNG)) * img_width)
+#     y = int(((MAX_LAT - lat) / (MAX_LAT - MIN_LAT)) * img_height)
+#     return x, y
+
+# def closest_color(rgb, legend):
+#     rgb = tuple(rgb[:3])
+#     distances = [
+#         (sum((c1 - c2) ** 2 for c1, c2 in zip(rgb, lrgb[:3])), name)
+#         for lrgb, name in legend.items()
+#     ]
+#     return min(distances, key=lambda x: x[0])[1]
+
+# def get_window_mode(img, x, y, legend, window=2):
+#     values = []
+#     for dx in range(-window, window + 1):
+#         for dy in range(-window, window + 1):
+#             nx, ny = x + dx, y + dy
+#             if 0 <= nx < img.width and 0 <= ny < img.height:
+#                 try:
+#                     px_rgb = img.getpixel((nx, ny))[:3]
+#                     values.append(closest_color(px_rgb, legend))
+#                 except Exception:
+#                     pass
+#     if values:
+#         return Counter(values).most_common(1)[0][0]
+#     else:
+#         return "Unknown"
+
+# class SoilPropertiesView(APIView):
+#     """API endpoint to get soil properties and related data based on latitude, longitude, and district.
+#     Expects POST data with 'lat', 'lng', and 'district' keys.
+#     Returns a JSON response with soil properties and other related data.
+#     """
+#     def post(self, request, format=None):
+#         lat = request.data.get("lat")
+#         lng = request.data.get("lng")
+#         district = request.data.get("city", "").strip().lower()
+
+#         print(f"Received POST: lat={lat}, lng={lng}, district='{district}'")  # DEBUG
+
+#         if lat is None or lng is None:
+#             return Response({"error": "Missing lat/lng"}, status=400)
+#         if not district:
+#             return Response({"error": "District is required"}, status=400)
+
+#         # Soil data from images
+#         result = {}
+#         for key, val in SOIL_IMAGES.items():
+#             try:
+#                 img = Image.open(val["path"])
+#                 width, height = img.size
+#                 x, y = latlng_to_pixel(float(lat), float(lng), width, height)
+#                 value = get_window_mode(img, x, y, val["legend"], window=2)
+#                 result[key] = value
+#             except Exception as e:
+#                 result[key] = f"Error: {str(e)}"
+
+#         # Database queries
+#         # Climate data
+#         climate_data = rajasthan_city_climate_split.objects.filter(City__iexact=district).values().first() or {}
+
+#         # Forest and population data
+#         forest_data = rajasthan_district_forest_stat.objects.filter(District__iexact=district).values().first() or {}
+
+#         # River data
+#         river_data = list(rajasthan_river_data.objects.filter(district__iexact=district).values(
+#             "river_name", "area_in_ha"
+#         ))
+
+#         # Estimated ravine area
+#         estimated_area = rajasthan_ravine_area.objects.filter(district__iexact=district).values("estimated_area_ha").first()
+#         estimated_area = estimated_area["estimated_area_ha"] if estimated_area else "Not available"
+
+#         # Rainfall data
+#         rainfall_data = rajasthan_rainfall_distribution_june2025.objects.filter(district__iexact=district).values().first() or {}
+
+#         # Well depth data
+#         well_depth_data = rajasthan_groundwater_wells.objects.filter(district_name__iexact=district).values().first() or {}
+
+#         # Water usage data
+#         # water_usage_data = list(water_usage_data.objects.filter(district__iexact=district).values(
+#         #     "crop", "irrigation_method", "water_consumption", "water_availability"
+#         # ))
+
+#         # Soil analysis data
+#         soil_analysis_rows = list(soil_analysis_data.objects.filter(district__iexact=district).values(
+#             "soil_type", "ph_level", "organic_matter", "nitrogen_content", "phosphorus_content", "potassium_content"
+#         ))
+
+#         # Crop production data
+#         crop_production_rows = list(crop_production_data.objects.filter(District__iexact=district).values(
+#             "Crop", "Season", "area_hectares", "yield_quintals", "production_metric_tons"
+#         ))
+
+#         # Crop price data
+#         crop_price_rows = list(crop_price_data.objects.filter(District__iexact=district).values(
+#             "Crop", "Market", "Date", "price_inr_per_quintal"
+#         ))
+
+#         # Additional database queries for new models
+#         forest_assessment_data = list(ForestAssessment2011_data_file_1.objects.filter(district__iexact=district).values(
+#             "geographical_area", "very_dense_forest", "mod_dense_forest", "open_forest",
+#             "total_forest", "percent_of_ga", "change", "scrub"
+#         ))
+
+#         noc_issuance_data = list(NoCIssuance.objects.filter(district__iexact=district).values(
+#             "circle", "division", "request_no", "process_status", "proposed_area",
+#             "distance_water_source", "distance_forest_boundary", "distance_protected_area",
+#             "number_trees", "forest_density", "species_details"
+#         ))
+
+#         offence_data = list(OffenceData.objects.filter(district__iexact=district).values(
+#             "range", "circle", "division", "offence_type", "fir_date", "items_seized",
+#             "compounded_amount", "rule_applied"
+#         ))
+
+#         block_master_data = list(BlockMaster.objects.filter(district__iexact=district).values(
+#             "range", "circle", "division", "block_name", "legal_status", "notify_area"
+#         ))
+
+#         forest_fire_alert_data = list(ForestFireAlert.objects.filter(district__iexact=district).values(
+#             "range", "circle", "division", "lat_long", "date_time", "status",
+#             "manpower_req", "organization_req", "affected_forest_area", "wildlife_loss"
+#         ))
+
+#         nursery_data = list(NurseryData.objects.filter(district__iexact=district).values(
+#             "circle", "division", "nursery_name", "plant_name", "plant_age",
+#             "plant_height", "plant_price", "total_stock", "online_purchase"
+#         ))
+
+#         master_produce_data = list(MasterProduce.objects.filter(district__iexact=district).values(
+#             "produce_type", "base_produce_type", "price"
+#         ))
+
+#         produce_auction_data = list(ProduceAuction.objects.filter(district__iexact=district).values(
+#             "circle", "division", "range", "depot", "int_no", "product_type",
+#             "product_unit", "product_quantity", "bidding_amount"
+#         ))
+
+#         project_shapefile_data = list(ProjectShapefile.objects.filter(district__iexact=district).values(
+#             "circle", "division", "range", "block", "lat_long"
+#         ))
+
+#         plantation_site_data = list(PlantationSite.objects.filter(district__iexact=district).values(
+#             "circle", "division", "range", "village", "scheme", "plantation_year"
+#         ))
+
+#         project_monthly_progress_data = list(ProjectMonthlyProgress.objects.filter(district__iexact=district).values(
+#             "circle", "division", "range", "site", "scheme", "physical_target",
+#             "physical_achieved", "budget_utilization", "man_days_generated"
+#         ))
+
+#         species_carbon_data = list(SpeciesCarbonSequestration.objects.all().values(
+#             "name", "scientific_name", "volume_equation_type", "volume_equation_coefficients",
+#             "wood_density", "biomass_expansion_factor", "carbon_fraction",
+#             "co2_conversion_factor", "diameter_growth", "root_shoot_ratio",
+#             "stem_leaf_biomass_factor"
+#         ))
+
+#         rainfall_dataset_data = list(RainfallDataset.objects.filter(district__iexact=district).values(
+#             "description", "source", "start_date", "end_date", "spatial_resolution"
+#         ))
+
+#         soil_moisture_data = list(SoilMoistureDataset.objects.filter(district__iexact=district).values(
+#             "description", "source", "start_date", "end_date", "spatial_resolution"
+#         ))
+
+#         groundwater_depth_data = list(GroundWaterDepth.objects.filter(district__iexact=district).values(
+#             "lat", "long", "year", "pre_monsoon", "post_monsoon"
+#         ))
+
+#         livestock_data = list(LivestockData.objects.filter(district__iexact=district).values(
+#             "livestock_type", "livestock_count"
+#         ))
+
+#         digital_elevation_data = list(DigitalElevationData.objects.filter(district__iexact=district).values(
+#             "description", "source", "year", "spatial_resolution"
+#         ))
+
+#         temperature_data = list(TemperatureData.objects.filter(district__iexact=district).values(
+#             "description", "source", "start_year", "end_year", "spatial_resolution"
+#         ))
+
+#         human_settlement_data = list(HumanSettlementData.objects.filter(district__iexact=district).values(
+#             "description", "source", "start_year", "spatial_resolution"
+#         ))
+
+#         grassland_water_data = list(GrasslandWaterBodiesData.objects.filter(district__iexact=district).values(
+#             "description", "source", "spatial_resolution"
+#         ))
+
+#         forest_fire_data = list(ForestFireData.objects.filter(district__iexact=district).values(
+#             "state", "circle", "lat_long", "date_time", "forest_block"
+#         ))
+
+#         return Response({
+#             "soil_data": result,
+#             "climate_data": climate_data,
+#             "forest_population_data": forest_data,
+#             "river_data": river_data,
+#             "estimated_area_data": estimated_area,
+#             "rainfall_data": rainfall_data,
+#             "well_depth_data": well_depth_data,
+#             # "water_usage_data": water_usage_data,
+#             "soil_analysis_data": soil_analysis_rows,
+#             "crop_production_data": crop_production_rows,
+#             "crop_price_data": crop_price_rows,
+#             "forest_assessment_2011_data": forest_assessment_data,
+#             "noc_issuance_data": noc_issuance_data,
+#             "offence_data": offence_data,
+#             "block_master_data": block_master_data,
+#             "forest_fire_alert_data": forest_fire_alert_data,
+#             "nursery_data": nursery_data,
+#             "master_produce_data": master_produce_data,
+#             "produce_auction_data": produce_auction_data,
+#             "project_shapefile_data": project_shapefile_data,
+#             "plantation_site_data": plantation_site_data,
+#             "project_monthly_progress_data": project_monthly_progress_data,
+#             "species_carbon_data": species_carbon_data,
+#             "rainfall_dataset_data": rainfall_dataset_data,
+#             "soil_moisture_data": soil_moisture_data,
+#             "groundwater_depth_data": groundwater_depth_data,
+#             "livestock_data": livestock_data,
+#             "digital_elevation_data": digital_elevation_data,
+#             "temperature_data": temperature_data,
+#             "human_settlement_data": human_settlement_data,
+#             "grassland_water_data": grassland_water_data,
+#             "forest_fire_data": forest_fire_data,
+#         })
+        
+# # # New API endpoint
+# # class CultivableGridAPI(APIView):
+# #     def get(self, request):
+# #         # Returns {"27.08422,74.30923": 1, ...}
+# #         return Response(CULTIVABILITY_MAP) # Return the cultivability map   
+# import csv
+# # Load cultivability map at server startup
+# CULTIVABILITY_MAP = {} # Dictionary to hold cultivability data
+# # This map will hold the cultivability status for each grid cell
+# # Key: "lat,lng" (rounded to 5 decimals), Value: 0 or 1 (not cultivable or cultivable)
+# # Example: "27.08422,74.30923": 1
+# # Load the grid results CSV file to populate the CULTIVABILITY_MAP
+# grid_csv_path = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/yolo_results/grid_results.csv"  # Change path!
+
+# with open(grid_csv_path, newline='') as csvfile: # Open the CSV file containing grid results
+#     reader = csv.DictReader(csvfile) # Read the CSV file as a dictionary
+#     for row in reader: # # Iterate through each row in the CSV
+#         index = row['index'] # Extract the index from the row
+#         CULTIVABILITY_MAP[index] = int(row['cultivable']) # Store cultivability as int (0 or 1) in the map
+
+   
+
+
+# # New API endpoint
+# class CultivableGridAPI(APIView):
+#     def get(self, request):
+#         # Returns {"27.08422,74.30923": 1, ...}
+#         return Response(CULTIVABILITY_MAP) # Return the cultivability map   

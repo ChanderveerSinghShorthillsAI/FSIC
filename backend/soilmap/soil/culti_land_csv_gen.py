@@ -48,31 +48,34 @@
 # results_csv.close()
 # print("Inference done. Results in grid_results.csv")
 
-from ultralytics import YOLO
+from ultralytics import YOLO # Import YOLO model from ultralytics
 import os
-import glob
-from pathlib import Path
+import glob # For file path operations
+from pathlib import Path # For handling file paths
 
 IMAGE_DIR = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/sat_images"  # <-- Yahi pe prediction CLI se bhi kari thi
-OUT_DIR = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/yolo_results"
-MODEL_PATH = "/home/shtlp_0060/Desktop/FSIC/runs/classify/train/weights/best.pt"
+OUT_DIR = "/home/shtlp_0060/Desktop/FSIC/backend/soilmap/soil/yolo_results" # Output directory for results
+MODEL_PATH = "/home/shtlp_0060/Desktop/FSIC/runs/classify/train/weights/best.pt"# Path to your trained YOLOv8 model
 
-os.makedirs(OUT_DIR, exist_ok=True)
-model = YOLO(MODEL_PATH)
+os.makedirs(OUT_DIR, exist_ok=True) # 
+model = YOLO(MODEL_PATH) # Load the trained YOLOv8 model
 
-results_csv = open(os.path.join(OUT_DIR, 'grid_results.csv'), 'w')
-results_csv.write("index,cultivable,predicted_class,conf\n")
+results_csv = open(os.path.join(OUT_DIR, 'grid_results.csv'), 'w')  # Open results CSV file for writing
+results_csv.write("index,cultivable,predicted_class,conf\n") # Write header to CSV
 
-for image_path in glob.glob(f"{IMAGE_DIR}/*.png"):
-    img_name = Path(image_path).name
-    index = img_name.split('_')[1].replace('.png', '')  # adjust if needed
+for image_path in glob.glob(f"{IMAGE_DIR}/*.png"):# 
+    img_name = Path(image_path).name # Get the image file name
+    index = img_name.split('_')[1].replace('.png', '')  # # Extract index from the image name
+    # Perform classification inference using the YOLO model
+    # task="classify" specifies that we want to classify the image
+    # The model will return a prediction object with probabilities and class names
 
-    pred = model(image_path, task="classify")[0]
-    pred_label = pred.names[pred.probs.top1]   # "cultivable" or "non-cultivable"
-    conf = float(pred.probs.top1conf)
+    pred = model(image_path, task="classify")[0] # Get the first prediction
+    pred_label = pred.names[pred.probs.top1]   # Get the predicted class label
+    conf = float(pred.probs.top1conf) # Get the confidence score of the prediction
 
-    cultivable = 1 if pred_label == "cultivable" else 0
-    results_csv.write(f"{index},{cultivable},{pred_label},{conf:.3f}\n")
+    cultivable = 1 if pred_label == "cultivable" else 0 # Determine if the land is cultivable
+    results_csv.write(f"{index},{cultivable},{pred_label},{conf:.3f}\n") # Write the results to the CSV file
     print(f"{img_name}: cultivable={cultivable}, class={pred_label}, conf={conf:.3f}")
 
 results_csv.close()
