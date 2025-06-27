@@ -4,3 +4,5 @@ runs/classify/predict
 backend/soilmap/soil/testing_images
 backend/soilmap/soil/sat_images
 backend/soilmap/soil/data/dataset
+backend/soilmap/soil/data/dataset.zip
+backend/soilmap/soil/testing_images.zip
